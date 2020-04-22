@@ -236,16 +236,18 @@ function writeInstruction(line) {
 		while(termNum >= 0){
 			valueB = getValue(opperands[termNum]);
 			writeChainOpperation(valueB,opperators.pop())
-			mov     DWORD PTR [rbp-28], eax
 		}
-	}
+		writeAssignment(varName,'eax');
+		}
 	return '';
 }
+//writes the first or only opperation in a line.
 function writeOpperation(valueA, valueB, opperator){
 	var result = '';
 	
 	return result;
 }
+//when you have a more then one opperation on a line, you need to use the chain opperation to link the additonal opperations to the first one.
 function writeChainOpperation(valueB, opperator){
 	var result = '';
 
