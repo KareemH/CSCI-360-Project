@@ -211,7 +211,6 @@ function writeIncrement(increment) {
 function writeInstruction(line) {
 	//TODO writes an instruction in assembly. Difficulty level hard.
 	var instructionType = getInstructionType(line);
-	var a = "a";
 	if (line.test('=')) {	//checks for assignment instruction
 		var splitLine = line.split("=");
 		var leftPart = splitLine[0];
@@ -225,8 +224,52 @@ function writeInstruction(line) {
 		}
 		//TODO finish implelemnting right side of '=' instruction.
 		//will first ignore order of opperations and parenthises. Will be fixed later.
-		var divOp = rightPart.split(/[\/\+\-\*]/);
-		
+		var opperands = rightPart.split(/[\/\+\-\*]/);
+
+		var opperators = rightPart.split(/\w/);
+		var result = '';
+		var termNum = opperands.length;
+		var valueA = getValue(opperands[termNum-2]);
+		var valueB = getValue(opperands[termNum-1]);
+		writeOpperation(valueA, valueB, opperators.pop())
+		termNum = termNum-4;
+		while(termNum >= 0){
+			valueB = getValue(opperands[termNum]);
+			writeChainOpperation(valueB,opperators.pop())
+			mov     DWORD PTR [rbp-28], eax
+		}
+	}
+	return '';
+}
+function writeOpperation(valueA, valueB, opperator){
+	var result = '';
+	
+	return result;
+}
+function writeChainOpperation(valueB, opperator){
+	var result = '';
+
+	return result;
+}
+
+//returns the value of the oppereand, either a litteral value or the DWORD of the variable
+function getValue(opperand){
+	if(/d/.test(opperand)){
+		return opperand;
+	}
+	else{
+		return getVariableDword(opperand);
+	}
+}//Finds the DWORD of the variable by name. Returns an empty string if not found.
+function getVariableDword(varName){
+	var scope = scopeLvl;
+	while (scope >= 0) {
+		variables[scopeLvl].forEach(variable => {
+			if (variable[0] ==  varName) {
+				return variable[0];
+			}
+		});
+		scope--;
 	}
 	return '';
 }
