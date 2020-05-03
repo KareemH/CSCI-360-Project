@@ -22,10 +22,11 @@ var variables = [[[]]];	//3d array for variables in c++ code. Outer array is for
 //Global variables should be stored in a label.
 //example: Line 8 in main.cpp has int i = 0;. i will be stored in DWORD PTR [rbp-4]
 //This is scopelvl 2 because int i is declaired in the for loop and cannot be accesed after the loop.
-//variables[2][0] = ["i","DWORD PTR [rbp-4]", 4]
+//variables[2][0] = ["i","DWORD PTR [rbp-4]", 4, int]
 //variables[2][0][0] = "i"	(variable name)
 //variables[2][0][1] = "DWORD PTR [rbp-4]"	(asembly code)
 //variables[2][0][2] = 4 	(size)
+//variables[2][0][3] = int 	(type)
 
 // @cppCode: called from demo.js testRegExClick() function, contains the C++ code in index.html
 function regExTest(cppCode) {
@@ -219,7 +220,7 @@ function writeInstruction(line) {
 	if (line.test('=')) {	//checks for assignment instruction
 		result = writeAssignmentInstruction(line);
 	} else if (/.*\w\(.*\).*/.test(line)) {
-		writeMethodeCall(line);
+		writeFunctionCall(line);
 	} else if (line.test('cin')) {
 		writeCin(line);
 	} else if (line.test('cout')) {
@@ -227,9 +228,37 @@ function writeInstruction(line) {
 	}
 	return result;
 }
-function writeMethodeCall(line) {
+function writeFunctionCall(line) {
 	var result = '';
-	return result;
+	var functionName = /w/.exec(line)[0]+'(';
+	var parameter = line.split('(')[1];
+	parameter = /(\w+|,)*/;
+	var parameterArray = parameter.split(',');
+	var paramIndex = parameterArray.length - 1;
+
+	while (paramIndex > 0) {
+		if (paramIndex > 5) {
+			result = result + 'mov eax, ' + getValue(parameterArray[paramIndex]);
+			result = result + '/npush rax/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}else if(paramIndex == 5) {
+			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '/n';
+		}
+		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
+		paramIndex--;
+	}
+	var lenght = functionName.length;
+	functionName.substr(0,lenght-1) + ')';
+	return result + functionName;
 }
 function writeCin(line) {
 	var result = '';
@@ -248,9 +277,10 @@ function writeAssignmentInstruction(line) {
 	let split = leftPart.split(/\s+/);		//splits the left part of the '=' into an array of words.
 	let varName = split.pop();				//last word in split is the variable name.
 	if (leftPart.test(/\w+\s+\w+/)) {	//checks if variable is being declared
-		let varSize = getVarSize(split.pop());	//next last word in split is the data type.
+		let dataTaype = split.pop();	//next last word in split is the data type.
+		let varSize = getVarSize(dataTaype);
 		let offset = getLastVarOffset() + varSize;
-		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize]); //adds the variable for use.
+		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
 	}
 	//will ignore order of opperations and parenthises and function call.
 	var opperands = rightPart.split(/\w/);
@@ -327,13 +357,21 @@ function getVariableDword(varName) {
 	}
 	return '';
 }
-//var declaration line may look like "int i" or "const double i". 
-//The last word is the variable name and the second to last word is the data type.
-function getVarSize(varDeclarationLine) {
-	var split = varDeclarationLine.split(/\s+/);	//splits the line into an array of words.
-	var length = split.length;
-	let type = split[length - 2];	//gets the second to last word
-	if (type == 'double') {			//other checks for data types may be added here.
+function getDataType(varName){
+	var scope = scopeLvl;
+	while (scope >= 0) {
+		variables[scopeLvl].forEach(variable => {
+			if (variable[0] == varName) {
+				return variable[3];
+			}
+		});
+		scope--;
+	}
+	return '';
+}
+
+function getVarSize(dataTaype) {
+	if (dataTaype == 'double') {			//other checks for data types may be added here.
 		return 8;
 	}
 	else {
