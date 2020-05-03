@@ -213,42 +213,62 @@ function writeIncrement(increment) {
 	}
 	return result;
 }
-//remove leading whitespace before calling
+
 function writeInstruction(line) {
 	var result = '';
-	var instructionType = getInstructionType(line);
 	if (line.test('=')) {	//checks for assignment instruction
-		var splitLine = line.split("=");
-		var leftPart = splitLine[0];
-		var rightPart = splitLine[1];
-		let split = leftPart.split(/\s+/);		//splits the left part of the '=' into an array of words.
-		let varName = split.pop();				//last word in split is the variable name.
-		if (leftPart.test(/\w+\s+\w+/)) {	//checks if variable is being declared
-			let varSize = getVarSize(split.pop());	//next last word in split is the data type.
-			let offset = getLastVarOffset() + varSize;
-			variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize]); //adds the variable for use.
-		}
-		//will ignore order of opperations and parenthises and function call.
-		var opperands = rightPart.split(/\w/);
-		var termNum = opperands.length;
-		if (termNum > 0) {
-			var opperators = rightPart.split(/[\/\+\-\*]/);
-			var valueA = getValue(opperands[termNum - 2]);
-			var valueB = getValue(opperands[termNum - 1]);
-			result = writeOpperation(valueA, valueB, opperators.pop())
-			termNum = termNum - 3;
-			while (termNum >= 0) {
-				valueB = getValue(opperands[termNum]);
-				result = result + writeChainOpperation(valueB, opperators.pop())
-			}
-			result = result + '/nmov ' + getVariableDword(varName) + ', eax';
-		}
-		else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(opperands[0]);
+		result = writeAssignmentInstruction(line);
+	} else if (/.*\w\(.*\).*/.test(line)) {
+		writeMethodeCall(line);
+	} else if (line.test('cin')) {
+		writeCin(line);
+	} else if (line.test('cout')) {
+		writeCout(line);
 	}
 	return result;
 }
-function getInstructionType(line) {
-return '';
+function writeMethodeCall(line) {
+	var result = '';
+	return result;
+}
+function writeCin(line) {
+	var result = '';
+	return result;
+}
+function writeCout(line) {
+	var result = '';
+	return result;
+}
+
+function writeAssignmentInstruction(line) {
+	var result = '';
+	var splitLine = line.split("=");
+	var leftPart = splitLine[0];
+	var rightPart = splitLine[1];
+	let split = leftPart.split(/\s+/);		//splits the left part of the '=' into an array of words.
+	let varName = split.pop();				//last word in split is the variable name.
+	if (leftPart.test(/\w+\s+\w+/)) {	//checks if variable is being declared
+		let varSize = getVarSize(split.pop());	//next last word in split is the data type.
+		let offset = getLastVarOffset() + varSize;
+		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize]); //adds the variable for use.
+	}
+	//will ignore order of opperations and parenthises and function call.
+	var opperands = rightPart.split(/\w/);
+	var termNum = opperands.length;
+	if (termNum > 0) {
+		var opperators = rightPart.split(/[\/\+\-\*]/);
+		var valueA = getValue(opperands[termNum - 2]);
+		var valueB = getValue(opperands[termNum - 1]);
+		result = writeOpperation(valueA, valueB, opperators.pop())
+		termNum = termNum - 3;
+		while (termNum >= 0) {
+			valueB = getValue(opperands[termNum]);
+			result = result + writeChainOpperation(valueB, opperators.pop())
+		}
+		result = result + '/nmov ' + getVariableDword(varName) + ', eax';
+	}
+	else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(opperands[0]);
+	return result;
 }
 
 //writes the first or only opperation in a line.
