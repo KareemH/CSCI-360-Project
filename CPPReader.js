@@ -242,15 +242,15 @@ function writeFunctionCall(line) {
 			result = result + '/npush rax/n';
 		}else if(paramIndex == 5) {
 			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 5) {
+		}else if(paramIndex == 4) {
 			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 5) {
+		}else if(paramIndex == 3) {
 			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 5) {
+		}else if(paramIndex == 2) {
 			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 5) {
+		}else if(paramIndex == 1) {
 			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 5) {
+		}else if(paramIndex == 0) {
 			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '/n';
 		}
 		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
