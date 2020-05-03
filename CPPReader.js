@@ -182,7 +182,7 @@ function convertToAssembly(cppCode) {
 }
 //writes the for loop initializer ex: for(int i = 0; i<10;i++) will write the int i = 0; part.
 function writeForLoopInrementInitializer(line) {
-	var beforeRegEx = /\s*\(\s*/; 	//part before the increment initializer
+	var beforeRegEx = /\s*for\s*\(\s*/; 	//part before the increment initializer
 	var afterRegEx = /;.*/;		//part after the increment initializer
 	var forLoopInitializer = line.replace(part1RegEx, "").replace(part2RegEx, "");
 	return writeInstruction(forLoopInitializer);
@@ -204,12 +204,18 @@ function hasNoOpenBracket(line) {
 }
 function writeIncrement(increment) {
 	//TODO write the for loop increment
-	variables[scopeLvl].push(getVariable(increment));
-	return '';
+	var incrementName = /\w/.exec(cppCode)[0];
+	var result = '';
+	if (increment.test('++')) {
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
+	} else if (increment.test('--')) {
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' + '1;');
+	}
+	return result;
 }
 //remove leading whitespace before calling
 function writeInstruction(line) {
-	//TODO writes an instruction in assembly. Difficulty level hard.
+	var result = '';
 	var instructionType = getInstructionType(line);
 	if (line.test('=')) {	//checks for assignment instruction
 		var splitLine = line.split("=");
@@ -222,52 +228,78 @@ function writeInstruction(line) {
 			let offset = getLastVarOffset() + varSize;
 			variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize]); //adds the variable for use.
 		}
-		//TODO finish implelemnting right side of '=' instruction.
-		//will first ignore order of opperations and parenthises. Will be fixed later.
-		var opperands = rightPart.split(/[\/\+\-\*]/);
-
-		var opperators = rightPart.split(/\w/);
-		var result = '';
+		//will ignore order of opperations and parenthises and function call.
+		var opperands = rightPart.split(/\w/);
 		var termNum = opperands.length;
-		var valueA = getValue(opperands[termNum-2]);
-		var valueB = getValue(opperands[termNum-1]);
-		writeOpperation(valueA, valueB, opperators.pop())
-		termNum = termNum-4;
-		while(termNum >= 0){
-			valueB = getValue(opperands[termNum]);
-			writeChainOpperation(valueB,opperators.pop())
+		if (termNum > 0) {
+			var opperators = rightPart.split(/[\/\+\-\*]/);
+			var valueA = getValue(opperands[termNum - 2]);
+			var valueB = getValue(opperands[termNum - 1]);
+			result = writeOpperation(valueA, valueB, opperators.pop())
+			termNum = termNum - 3;
+			while (termNum >= 0) {
+				valueB = getValue(opperands[termNum]);
+				result = result + writeChainOpperation(valueB, opperators.pop())
+			}
+			result = result + '/nmov ' + getVariableDword(varName) + ', eax';
 		}
-		writeAssignment(varName,'eax');
-		}
-	return '';
+		else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(opperands[0]);
+	}
+	return result;
 }
+function getInstructionType(line) {
+return '';
+}
+
 //writes the first or only opperation in a line.
-function writeOpperation(valueA, valueB, opperator){
-	var result = '';
-	
+function writeOpperation(valueA, valueB, opperator) {
+	var result = 'mov eax, ' + valueA + '/n mov edx, ' + valueB;
+	if (opperator.test('+')) {
+		result = result + '/n add eax, edx'
+	}
+	if (opperator.test('-')) {
+		result = result + '/n sub eax, edx'
+	}
+	if (opperator.test('/')) {
+		result = result + '/n cdq/nidiv edx'
+	}
+	if (opperator.test('*')) {
+		result = result + '/n imul eax, edx'
+	}
 	return result;
 }
 //when you have a more then one opperation on a line, you need to use the chain opperation to link the additonal opperations to the first one.
-function writeChainOpperation(valueB, opperator){
-	var result = '';
-
+function writeChainOpperation(valueB, opperator) {
+	var result = 'mov edx, ' + valueB;
+	if (opperator.test('+')) {
+		result = result + '/n add eax, edx'
+	}
+	if (opperator.test('-')) {
+		result = result + '/n sub eax, edx'
+	}
+	if (opperator.test('/')) {
+		result = result + '/n cdq/nidiv edx'
+	}
+	if (opperator.test('*')) {
+		result = result + '/n imul eax, edx'
+	}
 	return result;
 }
 
 //returns the value of the oppereand, either a litteral value or the DWORD of the variable
-function getValue(opperand){
-	if(/d/.test(opperand)){
+function getValue(opperand) {
+	if (/d/.test(opperand)) {
 		return opperand;
 	}
-	else{
+	else {
 		return getVariableDword(opperand);
 	}
 }//Finds the DWORD of the variable by name. Returns an empty string if not found.
-function getVariableDword(varName){
+function getVariableDword(varName) {
 	var scope = scopeLvl;
 	while (scope >= 0) {
 		variables[scopeLvl].forEach(variable => {
-			if (variable[0] ==  varName) {
+			if (variable[0] == varName) {
 				return variable[0];
 			}
 		});
@@ -313,15 +345,15 @@ function writeLabel(lableNum) {
 }
 function writeJump(labelNum) {
 	//write a jump instruction to the lable number
-	return `JMP L${lableNum}\\n`;
+	return `JMP L${lableNum}\n`;
 }
 function removeLastLine(asmCode) {
 	//removes the last line of assembly code
 	let index = asmCode.length - 1;
 	while (index > 0) {
-		index--;	//skips the last character of asmcode which should be '\n' and waits for the next '\n' charcter.
+		index--;	//skips the last character of asmcode and waits for the next '\n' charcter.
 		if (asmCode[index] == '\n') {
-			index--;	//index of end of prefious line
+			index--;	//index of end of previous line
 			asmCode = asmCode.substring(0, index);	//substring without last line
 			index = 0;	//set index to 0 to end loop
 		}
