@@ -182,16 +182,16 @@ function convertToAssembly(cppCode) {
 }
 //writes the for loop initializer ex: for(int i = 0; i<10;i++) will write the int i = 0; part.
 function writeForLoopInrementInitializer(line) {
-	var beforeRegEx = /\s*for\s*\(\s*/; 	//part before the increment initializer
-	var afterRegEx = /;.*/;		//part after the increment initializer
+	var part1RegEx = /\s*for\s*\(\s*/; 	//part before the increment initializer
+	var part2RegEx = /;.*/;		//part after the increment initializer
 	var forLoopInitializer = line.replace(part1RegEx, "").replace(part2RegEx, "");
 	return writeInstruction(forLoopInitializer);
 }
 
 //returns the for loop increment. ex: for(int i = 0; i<10;i++) will return the i++ part.
 function getForLoopInrement(line) {
-	beforeRegEx = /.*;.*;\s*/; 	//part before the increment
-	afterRegEx = /\s*\).*/;		//part after the increment
+	var part1RegEx = /.*;.*;\s*/; 	//part before the increment
+	var part2RegEx = /\s*\).*/;		//part after the increment
 	return line.replace(part1RegEx, "").replace(part2RegEx, "");	//returns the increment part
 }
 
@@ -275,16 +275,16 @@ function writeAssignmentInstruction(line) {
 function writeOpperation(valueA, valueB, opperator) {
 	var result = 'mov eax, ' + valueA + '/n mov edx, ' + valueB;
 	if (opperator.test('+')) {
-		result = result + '/n add eax, edx'
+		result = result + '/nadd eax, edx'
 	}
 	if (opperator.test('-')) {
-		result = result + '/n sub eax, edx'
+		result = result + '/nsub eax, edx'
 	}
 	if (opperator.test('/')) {
-		result = result + '/n cdq/nidiv edx'
+		result = result + '/ncdq/nidiv edx'
 	}
 	if (opperator.test('*')) {
-		result = result + '/n imul eax, edx'
+		result = result + '/nimul eax, edx'
 	}
 	return result;
 }
@@ -292,16 +292,16 @@ function writeOpperation(valueA, valueB, opperator) {
 function writeChainOpperation(valueB, opperator) {
 	var result = 'mov edx, ' + valueB;
 	if (opperator.test('+')) {
-		result = result + '/n add eax, edx'
+		result = result + '/nadd eax, edx'
 	}
 	if (opperator.test('-')) {
-		result = result + '/n sub eax, edx'
+		result = result + '/nsub eax, edx'
 	}
 	if (opperator.test('/')) {
-		result = result + '/n cdq/nidiv edx'
+		result = result + '/ncdq/nidiv edx'
 	}
 	if (opperator.test('*')) {
-		result = result + '/n imul eax, edx'
+		result = result + '/nimul eax, edx'
 	}
 	return result;
 }
@@ -352,7 +352,6 @@ function getLastVarOffset() {
 		});
 		scope--;
 	}
-
 	return max;
 }
 
