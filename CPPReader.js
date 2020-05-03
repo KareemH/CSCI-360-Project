@@ -209,7 +209,7 @@ function writeIncrement(increment) {
 	if (increment.test('++')) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
 	} else if (increment.test('--')) {
-		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' + '1;');
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' - '1;');
 	}
 	return result;
 }
