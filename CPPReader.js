@@ -150,6 +150,7 @@ function convertToAssembly(cppCode) {
 				}
 				variables[scopeLvl] = [[]];	//clears variables in scope
 				scopeLvl--;
+				popScope();
 				result = result + '\n' + writeLabel(labelNumberStack.pop());
 				nestedStatementStack.pop();
 			}
@@ -180,6 +181,11 @@ function convertToAssembly(cppCode) {
 		}
 	}
 	return result;
+}
+//removes variables of current scope and reduces scopeLvl by 1.
+function popScope() {
+	variables[scopeLvl] = [[]];
+	scopeLvl--;
 }
 //writes the for loop initializer ex: for(int i = 0; i<10;i++) will write the int i = 0; part.
 function writeForLoopInrementInitializer(line) {
@@ -230,34 +236,36 @@ function writeInstruction(line) {
 }
 function writeFunctionCall(line) {
 	var result = '';
-	var functionName = /w/.exec(line)[0]+'(';
+	var functionName = /w/.exec(line)[0] + '(';
 	var parameter = line.split('(')[1];
 	parameter = /(\w+|,)*/;
 	var parameterArray = parameter.split(',');
-	var paramIndex = parameterArray.length - 1;
+	var paramIndex = parameterArray.length;
 
 	while (paramIndex > 0) {
+		paramIndex--;
 		if (paramIndex > 5) {
 			result = result + 'mov eax, ' + getValue(parameterArray[paramIndex]);
 			result = result + '/npush rax/n';
-		}else if(paramIndex == 5) {
+		} else if (paramIndex == 5) {
 			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 4) {
+		} else if (paramIndex == 4) {
 			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 3) {
+		} else if (paramIndex == 3) {
 			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 2) {
+		} else if (paramIndex == 2) {
 			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 1) {
+		} else if (paramIndex == 1) {
 			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '/n';
-		}else if(paramIndex == 0) {
+		} else if (paramIndex == 0) {
 			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '/n';
 		}
 		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
-		paramIndex--;
+	}
+	if (parameterArray.length > 0) {
+		functionName = functionName.substr(0, lenght - 1) + ')';
 	}
 	var lenght = functionName.length;
-	functionName.substr(0,lenght-1) + ')';
 	return result + functionName;
 }
 function writeCin(line) {
@@ -357,7 +365,7 @@ function getVariableDword(varName) {
 	}
 	return '';
 }
-function getDataType(varName){
+function getDataType(varName) {
 	var scope = scopeLvl;
 	while (scope >= 0) {
 		variables[scopeLvl].forEach(variable => {
