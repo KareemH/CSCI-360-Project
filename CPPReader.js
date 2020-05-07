@@ -262,9 +262,10 @@ function writeFunctionCall(line) {
 	}
 	if (parameterArray.length > 0) {
 		functionName = functionName.substr(0, lenght - 1) + ')';
+	}else{
+		functionName = functionName + ')';
 	}
-	var lenght = functionName.length;
-	return result + functionName;
+	return result + '/n' + functionName;
 }
 function writeCin(line) {
 	var result = '';
@@ -479,6 +480,13 @@ function writeFunctionHeader(line) {
 		}
 		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
 	}
+	if (parameterArray.length > 0) {
+		functionName = functionName.substr(0, lenght - 1) + ')';
+	}else{
+		functionName = functionName + ')';
+	return functionName + '/n' + result;
+	}
+
 	return result;
 }
 function writeEndOfFunction() {
