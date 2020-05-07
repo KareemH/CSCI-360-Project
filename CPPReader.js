@@ -27,7 +27,7 @@ var variables = [[[]]];	//3d array for variables in c++ code. Outer array is for
 //variables[2][0][1] = "DWORD PTR [rbp-4]"	(asembly code)
 //variables[2][0][2] = 4 	(size)
 //variables[2][0][3] = int 	(type)
-
+var hasVoidReturnType = true; //used to deturmin if a function has a void ruturn type
 // @cppCode: called from demo.js testRegExClick() function, contains the C++ code in index.html
 function regExTest(cppCode) {
 	var result = '';
@@ -92,7 +92,7 @@ var getLineType = function (line) {
 function convertToAssembly(cppCode) {
 	var result = '';
 	var lableNum = 0;
-	var returnType = '';
+	var  = '';
 	var labelNumberStack = [];
 	var nestedStatementStack = [];
 	var forLoopIncrentStack = [];
@@ -106,7 +106,6 @@ function convertToAssembly(cppCode) {
 			scopeLvl++;
 			let memSize = getMemSize(cppCode);
 			result = result + '\n' + writeFunctionHeader(line, memSize);
-			returnType = getReturnType(line);
 		} else if (lineType == 'else') {
 			result = removeLastLine(result);
 			result = result + '\n' + writeJump(lableNum);
@@ -286,9 +285,7 @@ function writeAssignmentInstruction(line) {
 	let varName = split.pop();				//last word in split is the variable name.
 	if (leftPart.test(/\w+\s+\w+/)) {	//checks if variable is being declared
 		let dataTaype = split.pop();	//next last word in split is the data type.
-		let varSize = getVarSize(dataTaype);
-		let offset = getLastVarOffset() + varSize;
-		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
+		addVar(varName, dataTaype);
 	}
 	//will ignore order of opperations and parenthises and function call.
 	var opperands = rightPart.split(/\w/);
@@ -342,6 +339,11 @@ function writeChainOpperation(valueB, opperator) {
 		result = result + '/nimul eax, edx'
 	}
 	return result;
+}
+function addVar(varName, dataTaype){
+	let varSize = getVarSize(dataTaype);
+	let offset = getLastVarOffset() + varSize;
+	variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
 }
 
 //returns the value of the oppereand, either a litteral value or the DWORD of the variable
@@ -425,10 +427,6 @@ function removeLastLine(asmCode) {
 	}
 	return asmCode;
 }
-function getReturnType(cppCode) {
-	//TODO check if return type is void or int or double.
-	return 'void';
-}
 
 function getMemSize(cppCode) {
 	//TODO return the amount of memory needed for the function. Counts all memory needed for all variables and parameters and arrays of any size.
@@ -444,11 +442,29 @@ function getMemSize(cppCode) {
 	return memoryNeeded;
 }
 
-function writeFunctionHeader(cppCode) {
+function writeFunctionHeader(line) {
 	//TODO writes the function header and memory declaration and pushes parameters to stack
-	return '';
+	///(\w+\s+)?\w+\s+\w+\s*\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)\s*\{/;
+	var result = '';
+	var accesorReturnTypeName = /(\w+\s+)?\w+\s+\w+\s*\(/.exec(line)[0].split(/\s+/);
+	var functionName = accesorReturnTypeName.pop();
+	var returnType = accesorReturnTypeName.pop();
+	if (returnType == 'void') {
+		hasVoidReturnType = true;
+	} else {
+		hasVoidReturnType = false;
+	}
+	var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
+	var parameterarray = parameterRegex.exec(line)[0].split(';');
+
+	return result;
 }
-function writeEndOfFunction(returnType) {
+function writeEndOfFunction() {
 	//TODO writes the end of function depending on the return type
-	return '';
+	if (hasVoidReturnType) {
+		return '/nnop/npop rbp/nret';
+	}
+	else {
+		return '/npop rbp/nret';
+	}
 }
