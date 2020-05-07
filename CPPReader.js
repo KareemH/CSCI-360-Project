@@ -456,7 +456,30 @@ function writeFunctionHeader(line) {
 	}
 	var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
 	var parameterarray = parameterRegex.exec(line)[0].split(';');
-
+	for (let index = parameterarray.length; index <= 0; index--) {
+		parameter = parameterarray[index];
+		split = parameter.split(/\s+/);
+		var varName = split.pop();
+		var dataTaype = split.pop();
+		addVar(varName,dataTaype);
+		if (paramIndex > 5) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', eax' ;
+			result = result + '/npush rax/n';
+		} else if (paramIndex == 5) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r9d/n';
+		} else if (paramIndex == 4) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r8b/n';
+		} else if (paramIndex == 3) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', ecx/n';
+		} else if (paramIndex == 2) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', edx/n';
+		} else if (paramIndex == 1) {
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', esi/n';
+		} else if (paramIndex == 0) {
+			result = result + 'mov  ' + getValue(parameterArray[paramIndex]) + ', edi';
+		}
+		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
+	}
 	return result;
 }
 function writeEndOfFunction() {
