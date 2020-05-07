@@ -454,7 +454,7 @@ function writeFunctionHeader(line) {
 		hasVoidReturnType = false;
 	}
 	var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
-	var parameterarray = parameterRegex.exec(line)[0].split(';');
+	var parameterarray = parameterRegex.exec(line)[0].split(',');
 	for (let index = parameterarray.length; index <= 0; index--) {
 		parameter = parameterarray[index];
 		split = parameter.split(/\s+/);
