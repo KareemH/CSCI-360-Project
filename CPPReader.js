@@ -92,7 +92,6 @@ var getLineType = function (line) {
 function convertToAssembly(cppCode) {
 	var result = '';
 	var lableNum = 0;
-	var  = '';
 	var labelNumberStack = [];
 	var nestedStatementStack = [];
 	var forLoopIncrentStack = [];
