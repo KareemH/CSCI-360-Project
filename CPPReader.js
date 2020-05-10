@@ -211,9 +211,9 @@ function writeIncrement(increment) {
 	//TODO write the for loop increment
 	var incrementName = /\w/.exec(cppCode)[0];
 	var result = '';
-	if (increment.test('++')) {
+	if (/++/.test(increment)) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
-	} else if (increment.test('--')) {
+	} else if (/--/.test(increment)) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' - '1;');
 	}
 	return result;
@@ -221,14 +221,36 @@ function writeIncrement(increment) {
 
 function writeInstruction(line) {
 	var result = '';
-	if (line.test('=')) {	//checks for assignment instruction
+	if (/=/.test(line)) {	//checks for assignment instruction
 		result = writeAssignmentInstruction(line);
 	} else if (/.*\w\(.*\).*/.test(line)) {
-		writeFunctionCall(line);
-	} else if (line.test('cin')) {
-		writeCin(line);
-	} else if (line.test('cout')) {
-		writeCout(line);
+		result = writeFunctionCall(line);
+	} else if (/cin/.test(line)) {
+		result = writeCin(line);
+	} else if (/cout/.test(line)) {
+		result = writeCout(line);
+	} else if(/return/.test(line)){
+		result = writerReturn(line);
+	}
+	return result;
+}
+function writerReturn(line){
+	var result = '';
+	var opperators = /[\/\+\-\*]/.exec(line);
+	var opperands = /w/.exec(line);
+	var opperatorCount = opperators.length;
+	if(opperatorCount>0){
+		var valueA = opperands[1];
+		var valueB = opperands[2];
+		result = writeOpperation(valueA,valueB,opperators[0]);
+		var termNum =  3;
+		while(termNum < (opperatorCount-2)){
+			valueB = getValue(opperands[termNum]);
+			result = result + writeChainOpperation(valueB,opperators[termNum-2])
+			termNum++;
+		}
+	}else {
+		result = 'mov eax, ' + getValue(opperands[1]);
 	}
 	return result;
 }
@@ -283,22 +305,23 @@ function writeAssignmentInstruction(line) {
 	var rightPart = splitLine[1];
 	let split = leftPart.split(/\s+/);		//splits the left part of the '=' into an array of words.
 	let varName = split.pop();				//last word in split is the variable name.
-	if (leftPart.test(/\w+\s+\w+/)) {	//checks if variable is being declared
+	if (/\w+\s+\w+/.test(leftPart)) {	//checks if variable is being declared
 		let dataTaype = split.pop();	//next last word in split is the data type.
 		addVar(varName, dataTaype);
 	}
 	//will ignore order of opperations and parenthises and function call.
-	var opperands = rightPart.split(/\w/);
-	var termNum = opperands.length;
-	if (termNum > 0) {
-		var opperators = rightPart.split(/[\/\+\-\*]/);
-		var valueA = getValue(opperands[termNum - 2]);
-		var valueB = getValue(opperands[termNum - 1]);
-		result = writeOpperation(valueA, valueB, opperators.pop())
-		termNum = termNum - 3;
-		while (termNum >= 0) {
+	var opperators = /[\/\+\-\*]/.exec(rightPart);
+	var opperands = /w/.exec(rightPart);
+	var opperatorCount = opperators.length;
+	if(opperatorCount > 0){
+		var valueA = opperands[0];
+		var valueB = opperands[1];
+		result = writeOpperation(valueA,valueB,opperators[0]);
+		var termNum = 2;
+		while(termNum <= opperatorCount){
 			valueB = getValue(opperands[termNum]);
-			result = result + writeChainOpperation(valueB, opperators.pop())
+			result = result + writeChainOpperation(valueB,opperators[termNum-1])
+			termNum++;
 		}
 		result = result + '/nmov ' + getVariableDword(varName) + ', eax';
 	}
@@ -309,16 +332,16 @@ function writeAssignmentInstruction(line) {
 //writes the first or only opperation in a line.
 function writeOpperation(valueA, valueB, opperator) {
 	var result = 'mov eax, ' + valueA + '/n mov edx, ' + valueB;
-	if (opperator.test('+')) {
+	if (/\+/.test(opperator)) {
 		result = result + '/nadd eax, edx'
 	}
-	if (opperator.test('-')) {
+	if (/-/.test(opperator)) {
 		result = result + '/nsub eax, edx'
 	}
-	if (opperator.test('/')) {
+	if (/\//.test(opperator)) {
 		result = result + '/ncdq/nidiv edx'
 	}
-	if (opperator.test('*')) {
+	if (/\*/.test(opperator)) {
 		result = result + '/nimul eax, edx'
 	}
 	return result;
@@ -326,16 +349,16 @@ function writeOpperation(valueA, valueB, opperator) {
 //when you have a more then one opperation on a line, you need to use the chain opperation to link the additonal opperations to the first one.
 function writeChainOpperation(valueB, opperator) {
 	var result = 'mov edx, ' + valueB;
-	if (opperator.test('+')) {
+	if (/\+/.test(opperator)) {
 		result = result + '/nadd eax, edx'
 	}
-	if (opperator.test('-')) {
+	if (/-/.test(opperator)) {
 		result = result + '/nsub eax, edx'
 	}
-	if (opperator.test('/')) {
+	if (/\//.test(opperator)) {
 		result = result + '/ncdq/nidiv edx'
 	}
-	if (opperator.test('*')) {
+	if (/\*/.test(opperator)) {
 		result = result + '/nimul eax, edx'
 	}
 	return result;
