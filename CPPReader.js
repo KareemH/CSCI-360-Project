@@ -91,7 +91,7 @@ var getLineType = function (line) {
 }
 function convertToAssembly(cppCode) {
 	var result = '';
-	var lableNum = 0;
+	var labelNum = 0;
 	var labelNumberStack = [];
 	var nestedStatementStack = [];
 	var forLoopIncrentStack = [];
@@ -107,34 +107,36 @@ function convertToAssembly(cppCode) {
 			result = result + '\n' + writeFunctionHeader(line, memSize);
 		} else if (lineType == 'else') {
 			result = removeLastLine(result);
-			result = result + '\n' + writeJump(lableNum);
-			labelNumberStack.push(lableNum);
-			lableNum--;
-			result = result + '\n' + writeLable(lableNum);
-			lableNum += 2;
+			result = result + '\n' + writeJump(labelNum);
+			labelNumberStack.push(labelNum);
+			labelNum--;
+			result = result + '\n' + writeLabel(labelNum);
+			labelNum += 2;
 			nestedStatementStack.push('else');
 			if (hasNoOpenBracket(line)) {
+				scopeLvl++;
 				nestedStatementStack.push('no brackets');
 			}
 		} else if (lineType == 'if statment') {
-			result = result + '\n' + writeIfStatment(line, lableNum);
+			result = result + '\n' + writeIfStatment(line, labelNum);
 			nestedStatementStack.push('if statement');
 			labelNumberStack.push(labelNum);
 			labelNum++;
 			if (hasNoOpenBracket(line)) {
+				scopeLvl++;
 				nestedStatementStack.push('no brackets')
 			}
 		} else if (lineType == 'for loop') {
 			scopeLvl++;
 			result = result + '\n' + writeForLoopInrementInitializer(line);
-			result = result + '\n' + writeLable(labelNum);
+			result = result + '\n' + writeLabel(labelNum);
 			loopJumpStack.push(labelNum);
 			labelNum++;
-			result = result + '\n' + writeForLoopConition(line, lableNum);
+			result = result + '\n' + writeForLoopConition(line, labelNum);
 			nestedStatementStack.push('for loop');
 			labelNumberStack.push(labelNum);
 			labelNum++;
-			forLoopIncrentStak.push(getForLoopInrement(line));
+			forLoopIncrentStack.push(getForLoopInrement(line));
 			if (hasNoOpenBracket(line)) {
 				nestedStatementStack.push('no brackets');
 			}
@@ -145,16 +147,13 @@ function convertToAssembly(cppCode) {
 				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
 					result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
 					result = result + '\n' + writeJump(loopJumpStack.pop());
+					popScope();
+					result = result + '\n' + writeLabel(labelNumberStack.pop());
+					nestedStatementStack.pop();
 				}
-				variables[scopeLvl] = [[]];	//clears variables in scope
-				scopeLvl--;
-				popScope();
-				result = result + '\n' + writeLabel(labelNumberStack.pop());
-				nestedStatementStack.pop();
 			}
 		} else if (lineType == 'close bracket') {
-			variables[scopeLvl] = [[]]; //clears variables in scope
-			scopeLvl--;
+			popScope();
 			if (nestedStatementStack.length > 0) {
 				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
 					result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
@@ -163,8 +162,7 @@ function convertToAssembly(cppCode) {
 				result = result + '\n' + writeLabel(labelNumberStack.pop());
 				nestedStatementStack.pop();
 				while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1)) {
-					variables[scopeLvl] = [[]]; //clears variables in scope
-					scopeLvl--;
+					popScope();
 					nestedStatementStack.pop();
 					if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
 						result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
@@ -201,8 +199,38 @@ function getForLoopInrement(line) {
 }
 
 //returns the for loop condition. ex: for(int i = 0; i<10;i++) will return the i<0 part.
-function writeForLoopConition(line, lableNum) {
-	return "";
+function writeForLoopConition(line, labelNum) {
+	var result = '';
+	var condition = line.split(';')[1];
+	var split = /\w/.exec(condition);
+	leftPart = split[0];
+	rightPart = split[1];
+	result = 'mov eax, ' + getValue(leftPart);
+	result = result + '/ncmp eax, ' + getValue(rightPart);
+	result = result + writeCompare(condition);
+	return result;
+}
+function writeCompare(condition) {
+	var result = '';
+	if (/</.test(condition)) {
+		result = '/njge L' + labelNum;
+	}
+	if (/<=/.test(condition)) {
+		result = '/njg L' + labelNum;
+	}
+	if (/>/.test(condition)) {
+		result = '/njle L' + labelNum;
+	}
+	if (/>=/.test(condition)) {
+		result = '/njl L' + labelNum;
+	}
+	if (/==/.test(condition)) {
+		result = '/njne L' + labelNum;
+	}
+	if (/!=/.test(condition)) {
+		result = '/nje L' + labelNum;
+	}
+	return result;
 }
 function hasNoOpenBracket(line) {
 	return !(/.*\{/.test(line));
@@ -211,10 +239,18 @@ function writeIncrement(increment) {
 	//TODO write the for loop increment
 	var incrementName = /\w/.exec(cppCode)[0];
 	var result = '';
-	if (/++/.test(increment)) {
+	if (/\+\+/.test(increment)) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
+	} else if (/\+=/.test(increment)) {
+		var rightPart = increment.split('=')[1].replace(/s|;/, '');
+		var val = getValue(rightPart);
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + val + ';');
 	} else if (/--/.test(increment)) {
-		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' - '1;');
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' + '1;');
+	} else if (/-=/.test(increment)) {
+		var rightPart = increment.split('=')[1].replace(/s|;/, '');
+		var val = getValue(rightPart);
+		result = writeInstruction(incrementName + ' = ' + incrementName + ' - ' + val + ';');
 	}
 	return result;
 }
@@ -229,27 +265,29 @@ function writeInstruction(line) {
 		result = writeCin(line);
 	} else if (/cout/.test(line)) {
 		result = writeCout(line);
-	} else if(/return/.test(line)){
+	} else if (/return/.test(line)) {
 		result = writerReturn(line);
+	} else if (/(\+\+)|(--)|(\+=)|(-=)/.test(line)) {
+		writeIncrement(line);
 	}
 	return result;
 }
-function writerReturn(line){
+function writerReturn(line) {
 	var result = '';
 	var opperators = /[\/\+\-\*]/.exec(line);
 	var opperands = /w/.exec(line);
 	var opperatorCount = opperators.length;
-	if(opperatorCount>0){
+	if (opperatorCount > 0) {
 		var valueA = opperands[1];
 		var valueB = opperands[2];
-		result = writeOpperation(valueA,valueB,opperators[0]);
-		var termNum =  3;
-		while(termNum < (opperatorCount-2)){
+		result = writeOpperation(valueA, valueB, opperators[0]);
+		var termNum = 3;
+		while (termNum < (opperatorCount - 2)) {
 			valueB = getValue(opperands[termNum]);
-			result = result + writeChainOpperation(valueB,opperators[termNum-2])
+			result = result + writeChainOpperation(valueB, opperators[termNum - 2])
 			termNum++;
 		}
-	}else {
+	} else {
 		result = 'mov eax, ' + getValue(opperands[1]);
 	}
 	return result;
@@ -284,7 +322,7 @@ function writeFunctionCall(line) {
 	}
 	if (parameterArray.length > 0) {
 		functionName = functionName.substr(0, lenght - 1) + ')';
-	}else{
+	} else {
 		functionName = functionName + ')';
 	}
 	return result + '/n' + functionName;
@@ -313,14 +351,14 @@ function writeAssignmentInstruction(line) {
 	var opperators = /[\/\+\-\*]/.exec(rightPart);
 	var opperands = /w/.exec(rightPart);
 	var opperatorCount = opperators.length;
-	if(opperatorCount > 0){
+	if (opperatorCount > 0) {
 		var valueA = opperands[0];
 		var valueB = opperands[1];
-		result = writeOpperation(valueA,valueB,opperators[0]);
+		result = writeOpperation(valueA, valueB, opperators[0]);
 		var termNum = 2;
-		while(termNum <= opperatorCount){
+		while (termNum <= opperatorCount) {
 			valueB = getValue(opperands[termNum]);
-			result = result + writeChainOpperation(valueB,opperators[termNum-1])
+			result = result + writeChainOpperation(valueB, opperators[termNum - 1])
 			termNum++;
 		}
 		result = result + '/nmov ' + getVariableDword(varName) + ', eax';
@@ -363,7 +401,7 @@ function writeChainOpperation(valueB, opperator) {
 	}
 	return result;
 }
-function addVar(varName, dataTaype){
+function addVar(varName, dataTaype) {
 	let varSize = getVarSize(dataTaype);
 	let offset = getLastVarOffset() + varSize;
 	variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
@@ -428,14 +466,22 @@ function getLastVarOffset() {
 
 function writeIfStatment(line, labelNum) {
 	//TODO writes the if statement condition and jump. Difficulty level: medium
-	return '';
+	var result = '';
+	var condition = /(.*)/.exec(line);
+	var split = /\w/.exec(condition);
+	leftPart = split[0];
+	rightPart = split[1];
+	result = 'mov eax, ' + getValue(leftPart);
+	result = result + '/ncmp eax, ' + getValue(rightPart);
+	result = result + writeCompare(condition);
+	return result;
 }
-function writeLabel(lableNum) {
-	return `L${lableNum}:\n`;
+function writeLabel(labelNum) {
+	return `L${labelNum}:\n`;
 }
 function writeJump(labelNum) {
-	//write a jump instruction to the lable number
-	return `JMP L${lableNum}\n`;
+	//write a jump instruction to the label number
+	return `JMP L${labelNum}\n`;
 }
 function removeLastLine(asmCode) {
 	//removes the last line of assembly code
@@ -478,15 +524,15 @@ function writeFunctionHeader(line) {
 		hasVoidReturnType = false;
 	}
 	var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
-	var parameterarray = parameterRegex.exec(line)[0].split(',');
-	for (let index = parameterarray.length; index <= 0; index--) {
-		parameter = parameterarray[index];
+	var parameterArray = parameterRegex.exec(line)[0].split(',');
+	for (let index = parameterArray.length; index <= 0; index--) {
+		parameter = parameterArray[index];
 		split = parameter.split(/\s+/);
 		var varName = split.pop();
 		var dataTaype = split.pop();
-		addVar(varName,dataTaype);
+		addVar(varName, dataTaype);
 		if (paramIndex > 5) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', eax' ;
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', eax';
 			result = result + '/npush rax/n';
 		} else if (paramIndex == 5) {
 			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r9d/n';
@@ -504,10 +550,10 @@ function writeFunctionHeader(line) {
 		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
 	}
 	if (parameterArray.length > 0) {
-		functionName = functionName.substr(0, lenght - 1) + ')';
-	}else{
+		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
+	} else {
 		functionName = functionName + ')';
-	return functionName + '/n' + result;
+		return functionName + '/n' + result;
 	}
 
 	return result;
