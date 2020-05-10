@@ -98,13 +98,16 @@ function convertToAssembly(cppCode) {
 	var loopJumpStack = [];
 	var line = '';
 	while (cppCode.length != 0) {
+		if (lineType === "empty") {
+			break;
+		}
 		line = getFirstLine(cppCode);
 		cppCode = cppCode.replace(line, '');
 		var lineType = getLineType(line);
 		if (lineType == 'function header') {
 			scopeLvl++;
-			let memSize = getMemSize(cppCode);
-			result = result + '\n' + writeFunctionHeader(line, memSize);
+			//let memSize = getMemSize(cppCode);
+			result = result + '\n' + writeFunctionHeader(line);
 		} else if (lineType == 'else') {
 			result = removeLastLine(result);
 			result = result + '\n' + writeJump(labelNum);
@@ -142,9 +145,9 @@ function convertToAssembly(cppCode) {
 			}
 		} else if (lineType == 'instruction') {
 			result = result + '\n' + writeInstruction(line);
-			while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1)) {
+			while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 				nestedStatementStack.pop();
-				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
+				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 					result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
 					result = result + '\n' + writeJump(loopJumpStack.pop());
 					popScope();
@@ -155,16 +158,16 @@ function convertToAssembly(cppCode) {
 		} else if (lineType == 'close bracket') {
 			popScope();
 			if (nestedStatementStack.length > 0) {
-				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
+				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 					result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
 					result = result + '\n' + writeJump(loopJumpStack.pop());
 				}
 				result = result + '\n' + writeLabel(labelNumberStack.pop());
 				nestedStatementStack.pop();
-				while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1)) {
+				while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 					popScope();
 					nestedStatementStack.pop();
-					if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1)) {
+					if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 						result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
 						result = result + '\n' + writeJump(loopJumpStack.pop());
 					}
@@ -172,7 +175,7 @@ function convertToAssembly(cppCode) {
 					nestedStatementStack.pop();
 				}
 			} else {
-				result = result + '\n' + WriteEndOfFunction(returnType);	//no nested statement means end of function
+				result = result + '\n' + writeEndOfFunction();	//no nested statement means end of function
 			}
 		}
 	}
@@ -202,33 +205,33 @@ function getForLoopInrement(line) {
 function writeForLoopConition(line, labelNum) {
 	var result = '';
 	var condition = line.split(';')[1];
-	var split = /\w/.exec(condition);
+	var split = /\w+/.exec(condition);
 	leftPart = split[0];
 	rightPart = split[1];
 	result = 'mov eax, ' + getValue(leftPart);
-	result = result + '/ncmp eax, ' + getValue(rightPart);
-	result = result + writeCompare(condition);
+	result = result + '\ncmp eax, ' + getValue(rightPart);
+	result = result + writeCompare(condition, labelNum);
 	return result;
 }
-function writeCompare(condition) {
+function writeCompare(condition, labelNum) {
 	var result = '';
 	if (/</.test(condition)) {
-		result = '/njge L' + labelNum;
+		result = '\njge L' + labelNum;
 	}
 	if (/<=/.test(condition)) {
-		result = '/njg L' + labelNum;
+		result = '\njg L' + labelNum;
 	}
 	if (/>/.test(condition)) {
-		result = '/njle L' + labelNum;
+		result = '\njle L' + labelNum;
 	}
 	if (/>=/.test(condition)) {
-		result = '/njl L' + labelNum;
+		result = '\njl L' + labelNum;
 	}
 	if (/==/.test(condition)) {
-		result = '/njne L' + labelNum;
+		result = '\njne L' + labelNum;
 	}
 	if (/!=/.test(condition)) {
-		result = '/nje L' + labelNum;
+		result = '\nje L' + labelNum;
 	}
 	return result;
 }
@@ -237,7 +240,7 @@ function hasNoOpenBracket(line) {
 }
 function writeIncrement(increment) {
 	//TODO write the for loop increment
-	var incrementName = /\w/.exec(cppCode)[0];
+	var incrementName = /\w+/.exec(cppCode)[0];
 	var result = '';
 	if (/\+\+/.test(increment)) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
@@ -275,9 +278,9 @@ function writeInstruction(line) {
 function writerReturn(line) {
 	var result = '';
 	var opperators = /[\/\+\-\*]/.exec(line);
-	var opperands = /w/.exec(line);
-	var opperatorCount = opperators.length;
-	if (opperatorCount > 0) {
+	var opperands = /\w+/.exec(line);
+	if (opperators != null) {
+		var opperatorCount = opperators.length;
 		var valueA = opperands[1];
 		var valueB = opperands[2];
 		result = writeOpperation(valueA, valueB, opperators[0]);
@@ -294,9 +297,10 @@ function writerReturn(line) {
 }
 function writeFunctionCall(line) {
 	var result = '';
-	var functionName = /w/.exec(line)[0] + '(';
-	var parameter = line.split('(')[1];
-	parameter = /(\w+|,)*/;
+	var split = line.split('(');
+	var functionName = split[0] + '(';
+
+	parameter = split[1];
 	var parameterArray = parameter.split(',');
 	var paramIndex = parameterArray.length;
 
@@ -304,28 +308,28 @@ function writeFunctionCall(line) {
 		paramIndex--;
 		if (paramIndex > 5) {
 			result = result + 'mov eax, ' + getValue(parameterArray[paramIndex]);
-			result = result + '/npush rax/n';
+			result = result + '\npush rax\n';
 		} else if (paramIndex == 5) {
-			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '\n';
 		} else if (paramIndex == 4) {
-			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '\n';
 		} else if (paramIndex == 3) {
-			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '\n';
 		} else if (paramIndex == 2) {
-			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '\n';
 		} else if (paramIndex == 1) {
-			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '\n';
 		} else if (paramIndex == 0) {
-			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '/n';
+			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '\n';
 		}
 		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
 	}
 	if (parameterArray.length > 0) {
-		functionName = functionName.substr(0, lenght - 1) + ')';
+		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
 	} else {
 		functionName = functionName + ')';
 	}
-	return result + '/n' + functionName;
+	return result + '\n' + functionName;
 }
 function writeCin(line) {
 	var result = '';
@@ -343,15 +347,21 @@ function writeAssignmentInstruction(line) {
 	var rightPart = splitLine[1];
 	let split = leftPart.split(/\s+/);		//splits the left part of the '=' into an array of words.
 	let varName = split.pop();				//last word in split is the variable name.
+	while (varName == '') {
+		varName = split.pop();
+	}
 	if (/\w+\s+\w+/.test(leftPart)) {	//checks if variable is being declared
 		let dataTaype = split.pop();	//next last word in split is the data type.
+		while (dataTaype == '') {
+			dataTaype = split.pop();
+		}
 		addVar(varName, dataTaype);
 	}
 	//will ignore order of opperations and parenthises and function call.
 	var opperators = /[\/\+\-\*]/.exec(rightPart);
-	var opperands = /w/.exec(rightPart);
-	var opperatorCount = opperators.length;
-	if (opperatorCount > 0) {
+	var opperands = /\w+/.exec(rightPart);
+	if (opperators != null) {
+		var opperatorCount = opperators.length;
 		var valueA = opperands[0];
 		var valueB = opperands[1];
 		result = writeOpperation(valueA, valueB, opperators[0]);
@@ -361,7 +371,7 @@ function writeAssignmentInstruction(line) {
 			result = result + writeChainOpperation(valueB, opperators[termNum - 1])
 			termNum++;
 		}
-		result = result + '/nmov ' + getVariableDword(varName) + ', eax';
+		result = result + '\nmov ' + getVariableDword(varName) + ', eax';
 	}
 	else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(opperands[0]);
 	return result;
@@ -369,18 +379,18 @@ function writeAssignmentInstruction(line) {
 
 //writes the first or only opperation in a line.
 function writeOpperation(valueA, valueB, opperator) {
-	var result = 'mov eax, ' + valueA + '/n mov edx, ' + valueB;
+	var result = 'mov eax, ' + valueA + '\n mov edx, ' + valueB;
 	if (/\+/.test(opperator)) {
-		result = result + '/nadd eax, edx'
+		result = result + '\nadd eax, edx'
 	}
 	if (/-/.test(opperator)) {
-		result = result + '/nsub eax, edx'
+		result = result + '\nsub eax, edx'
 	}
 	if (/\//.test(opperator)) {
-		result = result + '/ncdq/nidiv edx'
+		result = result + '\ncdq\nidiv edx'
 	}
 	if (/\*/.test(opperator)) {
-		result = result + '/nimul eax, edx'
+		result = result + '\nimul eax, edx'
 	}
 	return result;
 }
@@ -388,28 +398,32 @@ function writeOpperation(valueA, valueB, opperator) {
 function writeChainOpperation(valueB, opperator) {
 	var result = 'mov edx, ' + valueB;
 	if (/\+/.test(opperator)) {
-		result = result + '/nadd eax, edx'
+		result = result + '\nadd eax, edx'
 	}
 	if (/-/.test(opperator)) {
-		result = result + '/nsub eax, edx'
+		result = result + '\nsub eax, edx'
 	}
 	if (/\//.test(opperator)) {
-		result = result + '/ncdq/nidiv edx'
+		result = result + '\ncdq\nidiv edx'
 	}
 	if (/\*/.test(opperator)) {
-		result = result + '/nimul eax, edx'
+		result = result + '\nimul eax, edx'
 	}
 	return result;
 }
 function addVar(varName, dataTaype) {
 	let varSize = getVarSize(dataTaype);
 	let offset = getLastVarOffset() + varSize;
-	variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
+	if (variables[scopeLvl] == null) {
+		variables[scopeLvl] = [varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype];
+	} else {
+		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
+	}
 }
 
 //returns the value of the oppereand, either a litteral value or the DWORD of the variable
 function getValue(opperand) {
-	if (/d/.test(opperand)) {
+	if (/d+/.test(opperand)) {
 		return opperand;
 	}
 	else {
@@ -419,11 +433,13 @@ function getValue(opperand) {
 function getVariableDword(varName) {
 	var scope = scopeLvl;
 	while (scope >= 0) {
-		variables[scopeLvl].forEach(variable => {
-			if (variable[0] == varName) {
-				return variable[0];
-			}
-		});
+		if (variables[scope] != null) {
+			variables[scope].forEach(variable => {
+				if (variable[0] == varName) {
+					return variable[1];
+				}
+			});
+		}
 		scope--;
 	}
 	return '';
@@ -431,14 +447,16 @@ function getVariableDword(varName) {
 function getDataType(varName) {
 	var scope = scopeLvl;
 	while (scope >= 0) {
-		variables[scopeLvl].forEach(variable => {
-			if (variable[0] == varName) {
-				return variable[3];
-			}
-		});
-		scope--;
+		if (variables[scope] != null) {
+			variables[scope].forEach(variable => {
+				if (variable[0] == varName) {
+					return variable[3];
+				}
+			});
+		}
+			scope--;
 	}
-	return '';
+	return 0;
 }
 
 function getVarSize(dataTaype) {
@@ -454,11 +472,13 @@ function getLastVarOffset() {
 	let max = 0;
 	var scope = scopeLvl;
 	while (scope > 0) {
-		variables[scopeLvl].forEach(variable => {
-			if (variable[2] > max) {
-				max = variable[2];
-			}
-		});
+		if (variables[scope] != null) {
+			variables[scope].forEach(variable => {
+				if (variable[2] > max) {
+					max = variable[2];
+				}
+			});
+		}
 		scope--;
 	}
 	return max;
@@ -468,11 +488,11 @@ function writeIfStatment(line, labelNum) {
 	//TODO writes the if statement condition and jump. Difficulty level: medium
 	var result = '';
 	var condition = /(.*)/.exec(line);
-	var split = /\w/.exec(condition);
+	var split = /\w+/.exec(condition);
 	leftPart = split[0];
 	rightPart = split[1];
 	result = 'mov eax, ' + getValue(leftPart);
-	result = result + '/ncmp eax, ' + getValue(rightPart);
+	result = result + '\ncmp eax, ' + getValue(rightPart);
 	result = result + writeCompare(condition);
 	return result;
 }
@@ -533,17 +553,17 @@ function writeFunctionHeader(line) {
 		addVar(varName, dataTaype);
 		if (paramIndex > 5) {
 			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', eax';
-			result = result + '/npush rax/n';
+			result = result + '\npush rax\n';
 		} else if (paramIndex == 5) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r9d/n';
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r9d\n';
 		} else if (paramIndex == 4) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r8b/n';
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r8b\n';
 		} else if (paramIndex == 3) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', ecx/n';
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', ecx\n';
 		} else if (paramIndex == 2) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', edx/n';
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', edx\n';
 		} else if (paramIndex == 1) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', esi/n';
+			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', esi\n';
 		} else if (paramIndex == 0) {
 			result = result + 'mov  ' + getValue(parameterArray[paramIndex]) + ', edi';
 		}
@@ -553,17 +573,16 @@ function writeFunctionHeader(line) {
 		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
 	} else {
 		functionName = functionName + ')';
-		return functionName + '/n' + result;
+		return functionName + '\n' + result;
 	}
 
 	return result;
 }
 function writeEndOfFunction() {
-	//TODO writes the end of function depending on the return type
 	if (hasVoidReturnType) {
-		return '/nnop/npop rbp/nret';
+		return '\nnop\npop rbp\nret';
 	}
 	else {
-		return '/npop rbp/nret';
+		return '\npop rbp\nret';
 	}
 }
