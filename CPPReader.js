@@ -506,7 +506,7 @@ function writeLabel(labelNum) {
 }
 function writeJump(labelNum) {
 	//write a jump instruction to the label number
-	return `JMP L${labelNum}\n`;
+	return `jmp L${labelNum}\n`;
 }
 function removeLastLine(asmCode) {
 	//removes the last line of assembly code
@@ -585,16 +585,16 @@ function writeFunctionHeader(line) {
 	if (parameterArray != null) {
 		functionName = functionName.substr(0, functionName.length - 1) + '):';
 	} else {
-		functionName = functionName + '):\n';
+		functionName = functionName + '):';
 	}
 
-	return functionName + '\n' + result;
+	return functionName + '\npush rbp\nmov rbp, rsp\n' + result;
 }
 function writeEndOfFunction() {
 	if (hasVoidReturnType) {
-		return '\nnop\npop rbp\nret';
+		return '\nnop\npop rbp\nret\n';
 	}
 	else {
-		return '\npop rbp\nret';
+		return '\npop rbp\nret\n';
 	}
 }
