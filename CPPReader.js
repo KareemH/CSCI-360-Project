@@ -117,8 +117,9 @@ function convertToAssembly(cppCode) {
 			labelNum += 2;
 			nestedStatementStack.push('else');
 			if (hasNoOpenBracket(line)) {
-				scopeLvl++;
 				nestedStatementStack.push('no brackets');
+			} else {
+				scopeLvl++;
 			}
 		} else if (lineType == 'if statment') {
 			result = result + '\n' + writeIfStatment(line, labelNum);
@@ -126,11 +127,11 @@ function convertToAssembly(cppCode) {
 			labelNumberStack.push(labelNum);
 			labelNum++;
 			if (hasNoOpenBracket(line)) {
-				scopeLvl++;
 				nestedStatementStack.push('no brackets')
+			} else {
+				scopeLvl++;
 			}
 		} else if (lineType == 'for loop') {
-			scopeLvl++;
 			result = result + '\n' + writeForLoopInrementInitializer(line);
 			result = result + '\n' + writeLabel(labelNum);
 			loopJumpStack.push(labelNum);
@@ -142,6 +143,8 @@ function convertToAssembly(cppCode) {
 			forLoopIncrentStack.push(getForLoopInrement(line));
 			if (hasNoOpenBracket(line)) {
 				nestedStatementStack.push('no brackets');
+			} else {
+				scopeLvl++;
 			}
 		} else if (lineType == 'instruction') {
 			result = result + '\n' + writeInstruction(line);
@@ -150,7 +153,6 @@ function convertToAssembly(cppCode) {
 				if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 					result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
 					result = result + '\n' + writeJump(loopJumpStack.pop());
-					popScope();
 					result = result + '\n' + writeLabel(labelNumberStack.pop());
 					nestedStatementStack.pop();
 				}
@@ -165,7 +167,6 @@ function convertToAssembly(cppCode) {
 				result = result + '\n' + writeLabel(labelNumberStack.pop());
 				nestedStatementStack.pop();
 				while (nestedStatementStack.lastIndexOf('no brackets') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
-					popScope();
 					nestedStatementStack.pop();
 					if (nestedStatementStack.lastIndexOf('for loop') == (nestedStatementStack.length - 1) && nestedStatementStack.length != 0) {
 						result = result + '\n' + writeIncrement(forLoopIncrentStack.pop());
@@ -431,32 +432,36 @@ function getValue(opperand) {
 	}
 }//Finds the DWORD of the variable by name. Returns an empty string if not found.
 function getVariableDword(varName) {
+	var result = '';
 	var scope = scopeLvl;
 	while (scope >= 0) {
 		if (variables[scope] != null) {
 			variables[scope].forEach(variable => {
 				if (variable[0] == varName) {
-					return variable[1];
+					result = variable[1];
+					return result;
 				}
 			});
 		}
 		scope--;
 	}
-	return '';
+	return result;
 }
 function getDataType(varName) {
+	var result = '';
 	var scope = scopeLvl;
 	while (scope >= 0) {
 		if (variables[scope] != null) {
 			variables[scope].forEach(variable => {
 				if (variable[0] == varName) {
-					return variable[3];
+					result = variable[3];
+					return result;
 				}
 			});
 		}
 		scope--;
 	}
-	return 0;
+	return result;
 }
 
 function getVarSize(dataTaype) {
@@ -559,20 +564,20 @@ function writeFunctionHeader(line) {
 			}
 			addVar(varName, dataType);
 			if (i > 5) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', eax';
+				result = result + 'mov ' + getValue(varName) + ', eax';
 				result = result + '\npush rax\n';
 			} else if (i == 5) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', r9d\n';
+				result = result + 'mov ' + getValue(varName) + ', r9d\n';
 			} else if (i == 4) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', r8b\n';
+				result = result + 'mov ' + getValue(varName) + ', r8b\n';
 			} else if (i == 3) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', ecx\n';
+				result = result + 'mov ' + getValue(varName) + ', ecx\n';
 			} else if (i == 2) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', edx\n';
+				result = result + 'mov ' + getValue(varName) + ', edx\n';
 			} else if (i == 1) {
-				result = result + 'mov ' + getValue(parameterArray[i]) + ', esi\n';
+				result = result + 'mov ' + getValue(varName) + ', esi\n';
 			} else if (i == 0) {
-				result = result + 'mov  ' + getValue(parameterArray[i]) + ', edi';
+				result = result + 'mov  ' + getValue(varName) + ', edi';
 			}
 			functionName = functionName + dataType + ',';
 		}
