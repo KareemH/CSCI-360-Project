@@ -107,7 +107,7 @@ function convertToAssembly(cppCode) {
 		if (lineType == 'function header') {
 			scopeLvl++;
 			//let memSize = getMemSize(cppCode);
-			result = result + '\n' + writeFunctionHeader(line);
+			result = result + writeFunctionHeader(line) + '\n';
 		} else if (lineType == 'else') {
 			result = removeLastLine(result);
 			result = result + '\n' + writeJump(labelNum);
@@ -539,7 +539,7 @@ function writeFunctionHeader(line) {
 	var split = line.split('(');
 	var accesorReturnTypeName = split[0].split(/\s+/);
 	var functionName = '';
-	functionName = accesorReturnTypeName.pop();
+	functionName = accesorReturnTypeName.pop() + '(';
 	var returnType = accesorReturnTypeName.pop();
 	if (returnType == 'void') {
 		hasVoidReturnType = true;
@@ -547,14 +547,17 @@ function writeFunctionHeader(line) {
 		hasVoidReturnType = false;
 	}
 	if (/\w+\)/.test(split[1])) {
-	//var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
-	var parameterArray = split[1].split(')')[0].split(',');
+		//var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
+		var parameterArray = split[1].split(')')[0].split(',');
 		for (let i = parameterArray.length - 1; i >= 0; i--) {
 			parameter = parameterArray[i];
 			split = parameter.split(/\s+/);
 			var varName = split.pop();
-			var dataTaype = split.pop();
-			addVar(varName, dataTaype);
+			var dataType = split.pop();
+			if (/\W/.test(dataType)) {
+				dataType = split.pop();
+			}
+			addVar(varName, dataType);
 			if (i > 5) {
 				result = result + 'mov ' + getValue(parameterArray[i]) + ', eax';
 				result = result + '\npush rax\n';
@@ -571,7 +574,7 @@ function writeFunctionHeader(line) {
 			} else if (i == 0) {
 				result = result + 'mov  ' + getValue(parameterArray[i]) + ', edi';
 			}
-			functionName = functionName + getDataType(parameterArray[i]) + ',';
+			functionName = functionName + dataType + ',';
 		}
 	}
 	if (parameterArray != null) {
