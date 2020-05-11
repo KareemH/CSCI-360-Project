@@ -302,27 +302,27 @@ function writeFunctionCall(line) {
 
 	parameter = split[1];
 	var parameterArray = parameter.split(',');
-	var paramIndex = parameterArray.length;
+	var i = parameterArray.length;
 
-	while (paramIndex > 0) {
-		paramIndex--;
-		if (paramIndex > 5) {
-			result = result + 'mov eax, ' + getValue(parameterArray[paramIndex]);
+	while (i > 0) {
+		i--;
+		if (i > 5) {
+			result = result + 'mov eax, ' + getValue(parameterArray[i]);
 			result = result + '\npush rax\n';
-		} else if (paramIndex == 5) {
-			result = result + 'mov r9d, ' + getValue(parameterArray[paramIndex]) + '\n';
-		} else if (paramIndex == 4) {
-			result = result + 'mov r8d, ' + getValue(parameterArray[paramIndex]) + '\n';
-		} else if (paramIndex == 3) {
-			result = result + 'mov ecx, ' + getValue(parameterArray[paramIndex]) + '\n';
-		} else if (paramIndex == 2) {
-			result = result + 'mov edx, ' + getValue(parameterArray[paramIndex]) + '\n';
-		} else if (paramIndex == 1) {
-			result = result + 'mov esi, ' + getValue(parameterArray[paramIndex]) + '\n';
-		} else if (paramIndex == 0) {
-			result = result + 'mov edi, ' + getValue(parameterArray[paramIndex]) + '\n';
+		} else if (i == 5) {
+			result = result + 'mov r9d, ' + getValue(parameterArray[i]) + '\n';
+		} else if (i == 4) {
+			result = result + 'mov r8d, ' + getValue(parameterArray[i]) + '\n';
+		} else if (i == 3) {
+			result = result + 'mov ecx, ' + getValue(parameterArray[i]) + '\n';
+		} else if (i == 2) {
+			result = result + 'mov edx, ' + getValue(parameterArray[i]) + '\n';
+		} else if (i == 1) {
+			result = result + 'mov esi, ' + getValue(parameterArray[i]) + '\n';
+		} else if (i == 0) {
+			result = result + 'mov edi, ' + getValue(parameterArray[i]) + '\n';
 		}
-		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
+		functionName = functionName + getDataType(parameterArray[i]) + ',';
 	}
 	if (parameterArray.length > 0) {
 		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
@@ -423,7 +423,7 @@ function addVar(varName, dataTaype) {
 
 //returns the value of the oppereand, either a litteral value or the DWORD of the variable
 function getValue(opperand) {
-	if (/d+/.test(opperand)) {
+	if (/\d+/.test(opperand)) {
 		return opperand;
 	}
 	else {
@@ -454,7 +454,7 @@ function getDataType(varName) {
 				}
 			});
 		}
-			scope--;
+		scope--;
 	}
 	return 0;
 }
@@ -535,48 +535,52 @@ function writeFunctionHeader(line) {
 	//TODO writes the function header and memory declaration and pushes parameters to stack
 	///(\w+\s+)?\w+\s+\w+\s*\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)\s*\{/;
 	var result = '';
-	var accesorReturnTypeName = /(\w+\s+)?\w+\s+\w+\s*\(/.exec(line)[0].split(/\s+/);
-	var functionName = accesorReturnTypeName.pop();
+	//var accesorReturnTypeName = /(\w+\s+)?\w+\s+\w+\s*\(/.exec(line)[0].split(/\s+/);
+	var split = line.split('(');
+	var accesorReturnTypeName = split[0].split(/\s+/);
+	var functionName = '';
+	functionName = accesorReturnTypeName.pop();
 	var returnType = accesorReturnTypeName.pop();
 	if (returnType == 'void') {
 		hasVoidReturnType = true;
 	} else {
 		hasVoidReturnType = false;
 	}
-	var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
-	var parameterArray = parameterRegex.exec(line)[0].split(',');
-	for (let index = parameterArray.length; index <= 0; index--) {
-		parameter = parameterArray[index];
-		split = parameter.split(/\s+/);
-		var varName = split.pop();
-		var dataTaype = split.pop();
-		addVar(varName, dataTaype);
-		if (paramIndex > 5) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', eax';
-			result = result + '\npush rax\n';
-		} else if (paramIndex == 5) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r9d\n';
-		} else if (paramIndex == 4) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', r8b\n';
-		} else if (paramIndex == 3) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', ecx\n';
-		} else if (paramIndex == 2) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', edx\n';
-		} else if (paramIndex == 1) {
-			result = result + 'mov ' + getValue(parameterArray[paramIndex]) + ', esi\n';
-		} else if (paramIndex == 0) {
-			result = result + 'mov  ' + getValue(parameterArray[paramIndex]) + ', edi';
+	if (/\w+\)/.test(split[1])) {
+	//var parameterRegex = /\(((\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*(,(\s*const\s)?\s*\w+((\s*(\*|&)\s*)|\s+)\w+\s*)*)?\)/;
+	var parameterArray = split[1].split(')')[0].split(',');
+		for (let i = parameterArray.length - 1; i >= 0; i--) {
+			parameter = parameterArray[i];
+			split = parameter.split(/\s+/);
+			var varName = split.pop();
+			var dataTaype = split.pop();
+			addVar(varName, dataTaype);
+			if (i > 5) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', eax';
+				result = result + '\npush rax\n';
+			} else if (i == 5) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', r9d\n';
+			} else if (i == 4) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', r8b\n';
+			} else if (i == 3) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', ecx\n';
+			} else if (i == 2) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', edx\n';
+			} else if (i == 1) {
+				result = result + 'mov ' + getValue(parameterArray[i]) + ', esi\n';
+			} else if (i == 0) {
+				result = result + 'mov  ' + getValue(parameterArray[i]) + ', edi';
+			}
+			functionName = functionName + getDataType(parameterArray[i]) + ',';
 		}
-		functionName = functionName + getDataType(parameterArray[paramIndex]) + ',';
 	}
-	if (parameterArray.length > 0) {
-		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
+	if (parameterArray != null) {
+		functionName = functionName.substr(0, functionName.length - 1) + '):';
 	} else {
-		functionName = functionName + ')';
-		return functionName + '\n' + result;
+		functionName = functionName + '):\n';
 	}
 
-	return result;
+	return functionName + '\n' + result;
 }
 function writeEndOfFunction() {
 	if (hasVoidReturnType) {
