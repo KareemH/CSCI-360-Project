@@ -267,6 +267,8 @@ function writeInstruction(line) {
 	var result = '';
 	if (/=/.test(line)) {	//checks for assignment instruction
 		result = writeAssignmentInstruction(line);
+	} else if (/\w+\s+\w+(\s*,\s*\w+)*/.test(line)) {
+		declareVariables(line);
 	} else if (/.*\w\(.*\).*/.test(line)) {
 		result = writeFunctionCall(line);
 	} else if (/cin/.test(line)) {
@@ -282,13 +284,13 @@ function writeInstruction(line) {
 }
 function writerReturn(line) {
 	var result = '';
-	line = line.replace('return','');
-	line = line.replace(';','');
+	line = line.replace('return', '');
+	line = line.replace(';', '');
 	var opperators = /[\/\+\-\*]/.exec(line);
 	var opperands = line.split(/[\/\+\-\*]/);
-if(opperands[0]==''){
-	return 'mov eax, 0';
-}
+	if (opperands[0] == '') {
+		return 'mov eax, 0';
+	}
 	if (opperators != null) {
 		var opperatorCount = opperators.length;
 		var valueA = /\w+/.exec(opperands[0])[0];
@@ -304,6 +306,15 @@ if(opperands[0]==''){
 		result = 'mov eax, ' + getValue(/\w+/.exec(opperands[0])[0]);
 	}
 	return result;
+}
+function declareVariables(line) {
+	var words = line.split(',');
+	var first2words = words[0].split(/\s+/);
+	var datatype = first2words[0];
+	addVar(first2words[1].replace(';',''),datatype)
+	while (words[1] != null) {
+		addVar(words.pop().replace(';',''),datatype);
+	}
 }
 function writeFunctionCall(line) {
 	var result = '';
