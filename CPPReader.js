@@ -22,11 +22,12 @@ var variables = [[[]]];	//3d array for variables in c++ code. Outer array is for
 //Global variables should be stored in a label.
 //example: Line 8 in main.cpp has int i = 0;. i will be stored in DWORD PTR [rbp-4]
 //This is scopelvl 2 because int i is declaired in the for loop and cannot be accesed after the loop.
-//variables[2][0] = ["i","DWORD PTR [rbp-4]", 4, int]
+//variables[2][0] = ["i","DWORD PTR [rbp-4]", 4, int, 4]
 //variables[2][0][0] = "i"	(variable name)
 //variables[2][0][1] = "DWORD PTR [rbp-4]"	(asembly code)
 //variables[2][0][2] = 4 	(size)
 //variables[2][0][3] = int 	(type)
+//variables[2][0][4] = 4 	(offset)
 var hasVoidReturnType = true; //used to deturmin if a function has a void ruturn type
 // @cppCode: called from demo.js testRegExClick() function, contains the C++ code in index.html
 function regExTest(cppCode) {
@@ -206,12 +207,15 @@ function getForLoopInrement(line) {
 function writeForLoopConition(line, labelNum) {
 	var result = '';
 	var condition = line.split(';')[1];
+	result = writeIfStatment('('+condition+')',labelNum);
+	/*
 	var split = /\w+/.exec(condition);
 	leftPart = split[0];
 	rightPart = split[1];
 	result = 'mov eax, ' + getValue(leftPart);
 	result = result + '\ncmp eax, ' + getValue(rightPart);
 	result = result + writeCompare(condition, labelNum);
+	*/
 	return result;
 }
 function writeCompare(condition, labelNum) {
@@ -241,7 +245,7 @@ function hasNoOpenBracket(line) {
 }
 function writeIncrement(increment) {
 	//TODO write the for loop increment
-	var incrementName = /\w+/.exec(cppCode)[0];
+	var incrementName = /\w+/.exec(increment)[0];
 	var result = '';
 	if (/\+\+/.test(increment)) {
 		result = writeInstruction(incrementName + ' = ' + incrementName + ' + ' + '1;');
@@ -278,66 +282,72 @@ function writeInstruction(line) {
 }
 function writerReturn(line) {
 	var result = '';
+	line = line.replace('return','');
+	line = line.replace(';','');
 	var opperators = /[\/\+\-\*]/.exec(line);
-	var opperands = /\w+/.exec(line);
+	var opperands = line.split(/[\/\+\-\*]/);
+if(opperands[0]==''){
+	return 'mov eax, 0';
+}
 	if (opperators != null) {
 		var opperatorCount = opperators.length;
-		var valueA = opperands[1];
-		var valueB = opperands[2];
+		var valueA = /\w+/.exec(opperands[0])[0];
+		var valueB = /\w+/.exec(opperands[1])[0];
 		result = writeOpperation(valueA, valueB, opperators[0]);
-		var termNum = 3;
-		while (termNum < (opperatorCount - 2)) {
-			valueB = getValue(opperands[termNum]);
-			result = result + writeChainOpperation(valueB, opperators[termNum - 2])
+		var termNum = 2;
+		while (termNum < (opperatorCount - 1)) {
+			valueB = getValue(/\w+/.exec(opperands[termNum])[0]);
+			result = result + writeChainOpperation(valueB, opperators[termNum - 1])
 			termNum++;
 		}
 	} else {
-		result = 'mov eax, ' + getValue(opperands[1]);
+		result = 'mov eax, ' + getValue(/\w+/.exec(opperands[0])[0]);
 	}
 	return result;
 }
 function writeFunctionCall(line) {
 	var result = '';
 	var split = line.split('(');
-	var functionName = split[0] + '(';
+	var functionName = ''
+	 functionName = split[0] + '(';
 
 	parameter = split[1];
 	var parameterArray = parameter.split(',');
-	var i = parameterArray.length;
+	var i = parameterArray.length-1;
 
-	while (i > 0) {
-		i--;
+	while (i >= 0) {
 		if (i > 5) {
-			result = result + 'mov eax, ' + getValue(parameterArray[i]);
+			result = result + 'mov eax, ' + getValue(/\w+/.exec(parameterArray[i])[0]);
 			result = result + '\npush rax\n';
 		} else if (i == 5) {
-			result = result + 'mov r9d, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov r9d, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		} else if (i == 4) {
-			result = result + 'mov r8d, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov r8d, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		} else if (i == 3) {
-			result = result + 'mov ecx, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov ecx, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		} else if (i == 2) {
-			result = result + 'mov edx, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov edx, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		} else if (i == 1) {
-			result = result + 'mov esi, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov esi, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		} else if (i == 0) {
-			result = result + 'mov edi, ' + getValue(parameterArray[i]) + '\n';
+			result = result + 'mov edi, ' + getValue(/\w+/.exec(parameterArray[i])[0]) + '\n';
 		}
-		functionName = functionName + getDataType(parameterArray[i]) + ',';
+		functionName = functionName + getDataType(/\w+/.exec(parameterArray[i])[0]) + ',';
+		i--;
 	}
 	if (parameterArray.length > 0) {
-		functionName = functionName.substr(0, functionName.lenght - 1) + ')';
+		functionName = functionName.substr(0, functionName.length - 1) + ')';
 	} else {
 		functionName = functionName + ')';
 	}
 	return result + '\n' + functionName;
 }
 function writeCin(line) {
-	var result = '';
+	var result = 'cin';
 	return result;
 }
 function writeCout(line) {
-	var result = '';
+	var result = 'cout';
 	return result;
 }
 
@@ -360,21 +370,21 @@ function writeAssignmentInstruction(line) {
 	}
 	//will ignore order of opperations and parenthises and function call.
 	var opperators = /[\/\+\-\*]/.exec(rightPart);
-	var opperands = /\w+/.exec(rightPart);
+	var opperands = rightPart.split(/[\/\+\-\*]/);
 	if (opperators != null) {
 		var opperatorCount = opperators.length;
-		var valueA = opperands[0];
-		var valueB = opperands[1];
+		var valueA = /\w+/.exec(opperands[0])[0];
+		var valueB = /\w+/.exec(opperands[1])[0];
 		result = writeOpperation(valueA, valueB, opperators[0]);
 		var termNum = 2;
 		while (termNum <= opperatorCount) {
-			valueB = getValue(opperands[termNum]);
+			valueB = getValue(/\w+/.exec(opperands[0])[0]);
 			result = result + writeChainOpperation(valueB, opperators[termNum - 1])
 			termNum++;
 		}
 		result = result + '\nmov ' + getVariableDword(varName) + ', eax';
 	}
-	else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(opperands[0]);
+	else result = 'mov ' + getVariableDword(varName) + ', ' + getValue(/\w+/.exec(opperands[0])[0]);
 	return result;
 }
 
@@ -416,15 +426,16 @@ function addVar(varName, dataTaype) {
 	let varSize = getVarSize(dataTaype);
 	let offset = getLastVarOffset() + varSize;
 	if (variables[scopeLvl] == null) {
-		variables[scopeLvl] = [varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype];
+		variables[scopeLvl] = [varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype, offset];
 	} else {
-		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype]); //adds the variable for use.
+		variables[scopeLvl].push([varName, `DWORD PTR [rbp-${offset}]`, varSize, dataTaype, offset]); //adds the variable for use.
 	}
 }
 
 //returns the value of the oppereand, either a litteral value or the DWORD of the variable
 function getValue(opperand) {
-	if (/\d+/.test(opperand)) {
+	var check = /[0-9]*(.[0-9]+)?/.exec(opperand)[0];
+	if (check==opperand) {
 		return opperand;
 	}
 	else {
@@ -479,8 +490,8 @@ function getLastVarOffset() {
 	while (scope > 0) {
 		if (variables[scope] != null) {
 			variables[scope].forEach(variable => {
-				if (variable[2] > max) {
-					max = variable[2];
+				if (variable[4] > max) {
+					max = variable[4];
 				}
 			});
 		}
@@ -492,13 +503,13 @@ function getLastVarOffset() {
 function writeIfStatment(line, labelNum) {
 	//TODO writes the if statement condition and jump. Difficulty level: medium
 	var result = '';
-	var condition = /(.*)/.exec(line);
-	var split = /\w+/.exec(condition);
-	leftPart = split[0];
-	rightPart = split[1];
+	var condition = /\(.*\)/.exec(line)[0];
+	var split = condition.split(/(>=)|>|(<=)|<|(==)|(!=)/);
+	leftPart = /\w+/.exec(split[0])[0];
+	rightPart = /\w+/.exec(split.pop())[0];
 	result = 'mov eax, ' + getValue(leftPart);
 	result = result + '\ncmp eax, ' + getValue(rightPart);
-	result = result + writeCompare(condition);
+	result = result + writeCompare(condition,labelNum);
 	return result;
 }
 function writeLabel(labelNum) {
